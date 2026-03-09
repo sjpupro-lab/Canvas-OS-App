@@ -55,8 +55,7 @@ jobs:
             src/gate_ops.c src/canvasos_opcodes.c src/cvp_io.c src/engine_ctx.c \
             src/lane_exec.c src/bpage_table.c src/inject.c src/wh_io.c \
             src/canvas_lane.c src/canvas_merge.c src/canvas_multiverse.c src/canvas_branch.c \
-            src/canvas_bh_compress.c src/workers.c src/canvas_gpu_stub.c src/sjptl_parser.c \
-            -lpthread
+            src/canvas_bh_compress.c src/workers.c src/canvas_gpu_stub.c src/sjptl_parser.c
 
           ls -la libcanvasos.so canvasos_launcher
 
