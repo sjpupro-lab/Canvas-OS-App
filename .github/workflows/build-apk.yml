@@ -59,12 +59,16 @@ jobs:
 
           ls -la libcanvasos.so canvasos_launcher
 
+      - name: Stage binaries
+        run: |
+          mkdir -p staging
+          cp native/build/libcanvasos.so staging/
+          cp native/build/canvasos_launcher staging/
+
       - uses: actions/upload-artifact@v4
         with:
           name: native-binaries
-          path: |
-            native/build/libcanvasos.so
-            native/build/canvasos_launcher
+          path: staging/
 
   build-apk:
     name: Build Android APK
@@ -82,8 +86,9 @@ jobs:
         run: |
           mkdir -p app/src/main/jniLibs/arm64-v8a
           mkdir -p app/src/main/assets
-          cp native-out/native/build/libcanvasos.so app/src/main/jniLibs/arm64-v8a/
-          cp native-out/native/build/canvasos_launcher app/src/main/assets/
+          ls -laR native-out/
+          cp native-out/libcanvasos.so app/src/main/jniLibs/arm64-v8a/
+          cp native-out/canvasos_launcher app/src/main/assets/
           chmod +x app/src/main/assets/canvasos_launcher
           ls -la app/src/main/jniLibs/arm64-v8a/ app/src/main/assets/
 
