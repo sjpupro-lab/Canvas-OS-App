@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D1117">
+
+    <!-- Terminal Output -->
+    <ScrollView
+        android:id="@+id/scrollOutput"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/quickBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/tvOutput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#C9D1D9"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:textIsSelectable="true" />
+    </ScrollView>
+
+    <!-- Quick Buttons Bar -->
+    <HorizontalScrollView
+        android:id="@+id/quickBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/dpadRow"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:background="#161B22"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <Button android:id="@+id/btnHome" style="@style/QuickBtn" android:text="home" />
+            <Button android:id="@+id/btnMap" style="@style/QuickBtn" android:text="map" />
+            <Button android:id="@+id/btnStat" style="@style/QuickBtn" android:text="stat" />
+            <Button android:id="@+id/btnHash" style="@style/QuickBtn" android:text="hash" />
+            <Button android:id="@+id/btnHelp" style="@style/QuickBtn" android:text="help" />
+            <Button android:id="@+id/btnSave" style="@style/QuickBtn" android:text="save" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- D-Pad (방향키) -->
+    <LinearLayout
+        android:id="@+id/dpadRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="#161B22"
+        android:padding="4dp"
+        app:layout_constraintBottom_toTopOf="@id/inputBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <Button android:id="@+id/btnLeft" style="@style/DpadBtn" android:text="◀" />
+        <Button android:id="@+id/btnUp" style="@style/DpadBtn" android:text="▲" />
+        <Button android:id="@+id/btnDown" style="@style/DpadBtn" android:text="▼" />
+        <Button android:id="@+id/btnRight" style="@style/DpadBtn" android:text="▶" />
+    </LinearLayout>
+
+    <!-- Input Bar -->
+    <LinearLayout
+        android:id="@+id/inputBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#21262D"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="canvas>"
+            android:textColor="#39D353"
+            android:textSize="14sp"
+            android:fontFamily="monospace"
+            android:gravity="center_vertical"
+            android:paddingEnd="4dp" />
+
+        <EditText
+            android:id="@+id/etInput"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:textColor="#C9D1D9"
+            android:textSize="14sp"
+            android:fontFamily="monospace"
+            android:background="#0D1117"
+            android:paddingHorizontal="8dp"
+            android:hint="명령어 입력..."
+            android:textColorHint="#484F58"
+            android:singleLine="true"
+            android:imeOptions="actionSend"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/btnSend"
+            android:layout_width="56dp"
+            android:layout_height="44dp"
+            android:text="▶"
+            android:textSize="18sp"
+            android:backgroundTint="#238636"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,23 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.apk
+*.aab
+# Keep pre-built native binaries
+!app/src/main/jniLibs/
+!app/src/main/assets/canvasos_launcher
+# Test binaries
+native/build/tests/test_*
+!native/build/tests/test_*.c
+native/build/canvasos*
+native/build/tervas
+native/build/sjterm
+native/build/*.so
+native/build/*.cvp

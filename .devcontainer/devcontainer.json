@@ -1,0 +1,22 @@
+{
+  "name": "SJ-CanvasOS Android Build",
+  "image": "mcr.microsoft.com/devcontainers/java:17-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/android-sdk:1": {
+      "version": "35",
+      "cmdLineToolsVersion": "latest",
+      "buildTools": "35.0.0",
+      "platformTools": true,
+      "ndk": "27.2.12479018"
+    }
+  },
+  "postCreateCommand": "chmod +x gradlew && ./gradlew --version",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "ms-vscode.cpptools"
+      ]
+    }
+  }
+}

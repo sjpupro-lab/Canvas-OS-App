@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 배경 그리드 패턴 (캔버스 느낌) -->
+    <path
+        android:fillColor="#1A39D353"
+        android:pathData="M24,24h60v60h-60z" />
+
+    <!-- 그리드 라인 -->
+    <path
+        android:strokeColor="#2039D353"
+        android:strokeWidth="0.5"
+        android:pathData="M24,39h60 M24,54h60 M24,69h60 M39,24v60 M54,24v60 M69,24v60" />
+
+    <!-- ◆ 다이아몬드 (CanvasOS 심볼) -->
+    <path
+        android:fillColor="#39D353"
+        android:pathData="M54,32 L68,54 L54,76 L40,54 Z" />
+
+    <!-- 내부 십자 (캔버스 좌표계) -->
+    <path
+        android:strokeColor="#0D1117"
+        android:strokeWidth="2"
+        android:pathData="M54,40v28 M46,54h16" />
+
+    <!-- 코너 도트 (셀 데이터) -->
+    <path
+        android:fillColor="#39D353"
+        android:pathData="M30,30 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+    <path
+        android:fillColor="#58A6FF"
+        android:pathData="M74,30 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+    <path
+        android:fillColor="#D29922"
+        android:pathData="M30,74 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+    <path
+        android:fillColor="#F85149"
+        android:pathData="M74,74 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+</vector>
