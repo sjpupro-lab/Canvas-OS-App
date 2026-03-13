@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#0D1117">
 
-    <!-- Canvas View (실시간 시각화) -->
+    <!-- Canvas View -->
     <com.sjpupro.canvasos.CanvasView
         android:id="@+id/canvasView"
         android:layout_width="0dp"
@@ -16,7 +16,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Cell Info Bar -->
     <TextView
         android:id="@+id/tvCellInfo"
         android:layout_width="wrap_content"
@@ -48,45 +47,15 @@
             android:padding="4dp"
             android:gravity="center_vertical">
 
-            <!-- 시각화 모드 -->
-            <Button
-                android:id="@+id/btnMode"
-                style="@style/QuickBtn"
-                android:text="ABGR"
-                android:textColor="#39D353" />
-
-            <!-- 게이트 오버레이 -->
-            <Button
-                android:id="@+id/btnGate"
-                style="@style/QuickBtn"
-                android:text="Gate"
-                android:textColor="#F85149" />
-
-            <!-- 스냅샷 -->
-            <Button
-                android:id="@+id/btnSnapshot"
-                style="@style/QuickBtn"
-                android:text="Snap"
-                android:textColor="#58A6FF" />
-
-            <!-- 해시 -->
-            <Button
-                android:id="@+id/btnHash"
-                style="@style/QuickBtn"
-                android:text="Hash"
-                android:textColor="#D29922" />
-
-            <!-- 터미널 전환 -->
-            <Button
-                android:id="@+id/btnTerminal"
-                style="@style/QuickBtn"
-                android:text="Term"
-                android:textColor="#8B949E" />
-
+            <Button android:id="@+id/btnMode" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ABGR" android:textColor="#39D353" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnGate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gate" android:textColor="#F85149" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnSnapshot" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Snap" android:textColor="#58A6FF" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnHash" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Hash" android:textColor="#D29922" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnTerminal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Term" android:textColor="#8B949E" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
         </LinearLayout>
     </HorizontalScrollView>
 
-    <!-- Timeline Bar (타임라인 제어) -->
+    <!-- Timeline Bar -->
     <LinearLayout
         android:id="@+id/timelineBar"
         android:layout_width="match_parent"
@@ -99,25 +68,9 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
-            android:id="@+id/btnRewind"
-            style="@style/DpadBtn"
-            android:text="⏪"
-            android:textSize="18sp" />
-
-        <Button
-            android:id="@+id/btnPlay"
-            style="@style/DpadBtn"
-            android:text="▶"
-            android:textColor="#39D353"
-            android:textSize="22sp" />
-
-        <Button
-            android:id="@+id/btnForward"
-            style="@style/DpadBtn"
-            android:text="⏩"
-            android:textSize="18sp" />
-
+        <Button android:id="@+id/btnRewind" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="RW" android:textColor="#D29922" android:textSize="16sp" android:minWidth="56dp" android:minHeight="48dp" android:layout_marginEnd="8dp" android:backgroundTint="#21262D" />
+        <Button android:id="@+id/btnPlay" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PLAY" android:textColor="#39D353" android:textSize="16sp" android:minWidth="56dp" android:minHeight="48dp" android:layout_marginEnd="8dp" android:backgroundTint="#21262D" />
+        <Button android:id="@+id/btnForward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="FF" android:textColor="#D29922" android:textSize="16sp" android:minWidth="56dp" android:minHeight="48dp" android:layout_marginEnd="8dp" android:backgroundTint="#21262D" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

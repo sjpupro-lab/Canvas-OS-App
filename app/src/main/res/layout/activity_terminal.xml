@@ -45,16 +45,16 @@
             android:orientation="horizontal"
             android:padding="4dp">
 
-            <Button android:id="@+id/btnHome" style="@style/QuickBtn" android:text="home" />
-            <Button android:id="@+id/btnMap" style="@style/QuickBtn" android:text="map" />
-            <Button android:id="@+id/btnStat" style="@style/QuickBtn" android:text="stat" />
-            <Button android:id="@+id/btnHash" style="@style/QuickBtn" android:text="hash" />
-            <Button android:id="@+id/btnHelp" style="@style/QuickBtn" android:text="help" />
-            <Button android:id="@+id/btnSave" style="@style/QuickBtn" android:text="save" />
+            <Button android:id="@+id/btnHome" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="home" android:textColor="#39D4D3" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnMap" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="map" android:textColor="#39D4D3" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnStat" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="stat" android:textColor="#39D4D3" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnHash" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="hash" android:textColor="#39D4D3" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnHelp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="help" android:textColor="#39D4D3" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
+            <Button android:id="@+id/btnSave" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="save" android:textColor="#39D4D3" android:textSize="12sp" android:fontFamily="monospace" android:minWidth="56dp" android:minHeight="36dp" android:layout_marginEnd="4dp" android:backgroundTint="#21262D" />
         </LinearLayout>
     </HorizontalScrollView>
 
-    <!-- D-Pad (방향키) -->
+    <!-- D-Pad -->
     <LinearLayout
         android:id="@+id/dpadRow"
         android:layout_width="match_parent"
@@ -67,10 +67,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <Button android:id="@+id/btnLeft" style="@style/DpadBtn" android:text="◀" />
-        <Button android:id="@+id/btnUp" style="@style/DpadBtn" android:text="▲" />
-        <Button android:id="@+id/btnDown" style="@style/DpadBtn" android:text="▼" />
-        <Button android:id="@+id/btnRight" style="@style/DpadBtn" android:text="▶" />
+        <Button android:id="@+id/btnLeft" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="◀" android:textColor="#D29922" android:textSize="20sp" android:minWidth="56dp" android:minHeight="48dp" android:layout_marginEnd="8dp" android:backgroundTint="#21262D" />
+        <Button android:id="@+id/btnUp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▲" android:textColor="#D29922" android:textSize="20sp" android:minWidth="56dp" android:minHeight="48dp" android:layout_marginEnd="8dp" android:backgroundTint="#21262D" />
+        <Button android:id="@+id/btnDown" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▼" android:textColor="#D29922" android:textSize="20sp" android:minWidth="56dp" android:minHeight="48dp" android:layout_marginEnd="8dp" android:backgroundTint="#21262D" />
+        <Button android:id="@+id/btnRight" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▶" android:textColor="#D29922" android:textSize="20sp" android:minWidth="56dp" android:minHeight="48dp" android:layout_marginEnd="8dp" android:backgroundTint="#21262D" />
     </LinearLayout>
 
     <!-- Input Bar -->

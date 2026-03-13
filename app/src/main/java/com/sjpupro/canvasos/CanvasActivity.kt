@@ -1,134 +1,126 @@
 package com.sjpupro.canvasos
 
 import android.os.Bundle
+import android.util.Log
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.sjpupro.canvasos.databinding.ActivityCanvasBinding
 import kotlinx.coroutines.*
 import java.io.*
 
 /**
  * CanvasActivity — CanvasOS 캔버스 시각화 화면
- *
- * 네이티브 프로세스를 GUI 모드로 실행하여 캔버스를 실시간 렌더링.
- * 5가지 시각화 모드 전환, 터치로 셀 편집, 타임라인 탐색 지원.
  */
 class CanvasActivity : AppCompatActivity(), CanvasView.OnCellTouchListener {
 
-    private lateinit var binding: ActivityCanvasBinding
+    private val TAG = "CanvasActivity"
+    private var canvasView: CanvasView? = null
+    private var tvCellInfo: TextView? = null
     private var process: Process? = null
     private var processWriter: BufferedWriter? = null
     private var outputJob: Job? = null
     private var refreshJob: Job? = null
-    private var currentMode = 0  // 0=ABGR, 1=Energy, 2=Opcode, 3=Lane, 4=Activity
+    private var currentMode = 0
     private val modeNames = arrayOf("ABGR", "Energy", "Opcode", "Lane", "Activity")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityCanvasBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+
+        try {
+            setContentView(R.layout.activity_canvas)
+        } catch (e: Exception) {
+            Log.e(TAG, "Layout failed", e)
+            val tv = TextView(this)
+            tv.text = "Layout error:\n${e.stackTraceToString()}"
+            tv.setTextColor(0xFFFF4444.toInt())
+            tv.setBackgroundColor(0xFF000000.toInt())
+            setContentView(tv)
+            return
+        }
+
+        canvasView = findViewById(R.id.canvasView)
+        tvCellInfo = findViewById(R.id.tvCellInfo)
 
         val dataDir = NativeBridge.getDataDir()
         val bmpPath = "$dataDir/canvas_gui.bmp"
 
-        binding.canvasView.cellTouchListener = this
-        binding.canvasView.bmpPath = bmpPath
+        canvasView?.cellTouchListener = this
+        canvasView?.bmpPath = bmpPath
 
-        // 시각화 모드 전환
-        binding.btnMode.setOnClickListener {
+        val btnMode = findViewById<Button>(R.id.btnMode)
+        btnMode?.setOnClickListener {
             currentMode = (currentMode + 1) % modeNames.size
-            val modeName = modeNames[currentMode]
-            binding.btnMode.text = modeName
-            binding.canvasView.visMode = modeName
-            sendCommand("vis $modeName")
+            val name = modeNames[currentMode]
+            btnMode.text = name
+            canvasView?.visMode = name
+            sendCommand("vis $name")
         }
 
-        // 게이트 오버레이 토글
-        binding.btnGate.setOnClickListener {
-            sendCommand("gate toggle")
-        }
-
-        // 타임라인 제어
-        binding.btnRewind.setOnClickListener { sendCommand("timewarp -10") }
-        binding.btnPlay.setOnClickListener { sendCommand("tick") }
-        binding.btnForward.setOnClickListener { sendCommand("timewarp +10") }
-
-        // 스냅샷
-        binding.btnSnapshot.setOnClickListener {
+        findViewById<Button>(R.id.btnGate)?.setOnClickListener { sendCommand("gate toggle") }
+        findViewById<Button>(R.id.btnRewind)?.setOnClickListener { sendCommand("timewarp -10") }
+        findViewById<Button>(R.id.btnPlay)?.setOnClickListener { sendCommand("tick") }
+        findViewById<Button>(R.id.btnForward)?.setOnClickListener { sendCommand("timewarp +10") }
+        findViewById<Button>(R.id.btnSnapshot)?.setOnClickListener {
             sendCommand("snapshot gui_snap")
             Toast.makeText(this, "Snapshot saved", Toast.LENGTH_SHORT).show()
         }
+        findViewById<Button>(R.id.btnHash)?.setOnClickListener { sendCommand("hash") }
+        findViewById<Button>(R.id.btnTerminal)?.setOnClickListener { finish() }
 
-        // 해시 검증
-        binding.btnHash.setOnClickListener { sendCommand("hash") }
-
-        // 터미널 전환
-        binding.btnTerminal.setOnClickListener { finish() }
-
-        // 네이티브 프로세스 시작
         startCanvasProcess(bmpPath)
     }
 
     private fun startCanvasProcess(bmpPath: String) {
         try {
-            process = NativeBridge.startProcess("gui")
-            processWriter = process!!.outputStream.bufferedWriter()
+            val proc = NativeBridge.startProcess("gui")
+            if (proc == null) {
+                Toast.makeText(this, "Failed to start engine", Toast.LENGTH_LONG).show()
+                return
+            }
+            process = proc
+            processWriter = proc.outputStream.bufferedWriter()
 
-            // GUI 모드 초기화 — BMP 출력 경로 설정
             sendCommand("gui_output $bmpPath")
             sendCommand("vis ABGR")
 
-            // stdout 로그 읽기
             outputJob = lifecycleScope.launch(Dispatchers.IO) {
-                val reader = process!!.inputStream.bufferedReader()
+                val reader = proc.inputStream.bufferedReader()
                 try {
                     val buf = CharArray(2048)
                     while (isActive) {
                         val n = reader.read(buf)
                         if (n == -1) break
-                        val text = String(buf, 0, n)
-                        // 상태 파싱
-                        parseStatus(text)
+                        parseStatus(String(buf, 0, n))
                     }
                 } catch (_: IOException) {}
             }
 
-            // 자동 tick + BMP 갱신 요청
             refreshJob = lifecycleScope.launch(Dispatchers.IO) {
                 while (isActive) {
-                    delay(100)
+                    delay(200)
                     sendCommand("gui_refresh")
                 }
             }
-
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun parseStatus(text: String) {
-        // 간단한 상태 파싱: "TICK:1234" "HASH:ABCD1234"
         for (line in text.lines()) {
             when {
-                line.startsWith("TICK:") -> {
-                    val tick = line.removePrefix("TICK:").trim().toLongOrNull() ?: 0
-                    binding.canvasView.tickCount = tick
-                }
-                line.startsWith("HASH:") -> {
-                    binding.canvasView.statusText = line.trim()
-                }
-                line.startsWith("STATUS:") -> {
-                    binding.canvasView.statusText = line.removePrefix("STATUS:").trim()
-                }
+                line.startsWith("TICK:") -> canvasView?.tickCount = line.removePrefix("TICK:").trim().toLongOrNull() ?: 0
+                line.startsWith("HASH:") -> canvasView?.statusText = line.trim()
+                line.startsWith("STATUS:") -> canvasView?.statusText = line.removePrefix("STATUS:").trim()
             }
         }
     }
 
     override fun onCellTouch(x: Int, y: Int) {
-        // 터치 좌표를 네이티브에 전달
         sendCommand("touch $x $y")
-        binding.tvCellInfo.text = "Cell($x,$y)"
+        tvCellInfo?.text = "Cell($x,$y)"
     }
 
     private fun sendCommand(cmd: String) {
@@ -144,12 +136,8 @@ class CanvasActivity : AppCompatActivity(), CanvasView.OnCellTouchListener {
         super.onDestroy()
         refreshJob?.cancel()
         outputJob?.cancel()
-        binding.canvasView.cleanup()
-        try {
-            processWriter?.write("exit\n")
-            processWriter?.flush()
-            processWriter?.close()
-        } catch (_: Exception) {}
+        canvasView?.cleanup()
+        try { processWriter?.close() } catch (_: Exception) {}
         process?.destroyForcibly()
     }
 }

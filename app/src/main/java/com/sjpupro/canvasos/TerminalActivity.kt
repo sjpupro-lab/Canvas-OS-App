@@ -2,113 +2,142 @@ package com.sjpupro.canvasos
 
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
-import android.view.KeyEvent
+import android.util.Log
 import android.view.inputmethod.EditorInfo
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.sjpupro.canvasos.databinding.ActivityTerminalBinding
 import kotlinx.coroutines.*
 import java.io.*
 
 /**
  * TerminalActivity — CanvasOS 터미널 화면
- *
- * 네이티브 canvasos_launcher 프로세스를 실행하고
- * stdin/stdout을 터치 UI와 연결.
  */
 class TerminalActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityTerminalBinding
+    private val TAG = "TerminalActivity"
+    private var tvOutput: TextView? = null
+    private var etInput: EditText? = null
     private var process: Process? = null
     private var processWriter: BufferedWriter? = null
     private var outputJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityTerminalBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
-        binding.tvOutput.movementMethod = ScrollingMovementMethod()
+        try {
+            setContentView(R.layout.activity_terminal)
+        } catch (e: Exception) {
+            Log.e(TAG, "Layout failed", e)
+            val tv = TextView(this)
+            tv.text = "Layout error:\n${e.stackTraceToString()}"
+            tv.textSize = 11f
+            tv.setTextColor(0xFFFF4444.toInt())
+            tv.setBackgroundColor(0xFF000000.toInt())
+            tv.setPadding(16, 48, 16, 16)
+            setContentView(tv)
+            return
+        }
+
+        tvOutput = findViewById(R.id.tvOutput)
+        etInput = findViewById(R.id.etInput)
+
+        tvOutput?.movementMethod = ScrollingMovementMethod()
 
         val mode = intent.getStringExtra("mode") ?: "launcher"
+
+        // 디버그 정보 먼저 표시
+        tvOutput?.text = "Starting CanvasOS ($mode)...\n" +
+            "Binary: ${NativeBridge.getBinaryPath()}\n" +
+            "Installed: ${NativeBridge.isInstalled()}\n\n"
+
         startCanvasOS(mode)
 
-        // 입력 전송
-        binding.btnSend.setOnClickListener { sendInput() }
-        binding.etInput.setOnEditorActionListener { _, actionId, _ ->
+        // 입력
+        findViewById<Button>(R.id.btnSend)?.setOnClickListener { sendInput() }
+        etInput?.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND ||
                 actionId == EditorInfo.IME_ACTION_DONE) {
-                sendInput()
-                true
+                sendInput(); true
             } else false
         }
 
         // 퀵 버튼
-        binding.btnHome.setOnClickListener { sendCommand("home") }
-        binding.btnMap.setOnClickListener { sendCommand("map") }
-        binding.btnStat.setOnClickListener { sendCommand("stat") }
-        binding.btnHelp.setOnClickListener { sendCommand("help") }
-        binding.btnHash.setOnClickListener { sendCommand("hash") }
-        binding.btnSave.setOnClickListener { sendCommand("save") }
+        findViewById<Button>(R.id.btnHome)?.setOnClickListener { sendCommand("home") }
+        findViewById<Button>(R.id.btnMap)?.setOnClickListener { sendCommand("map") }
+        findViewById<Button>(R.id.btnStat)?.setOnClickListener { sendCommand("stat") }
+        findViewById<Button>(R.id.btnHelp)?.setOnClickListener { sendCommand("help") }
+        findViewById<Button>(R.id.btnHash)?.setOnClickListener { sendCommand("hash") }
+        findViewById<Button>(R.id.btnSave)?.setOnClickListener { sendCommand("save") }
 
         // 방향키
-        binding.btnUp.setOnClickListener { sendCommand("^") }
-        binding.btnDown.setOnClickListener { sendCommand("v") }
-        binding.btnLeft.setOnClickListener { sendCommand("<") }
-        binding.btnRight.setOnClickListener { sendCommand(">") }
+        findViewById<Button>(R.id.btnUp)?.setOnClickListener { sendCommand("^") }
+        findViewById<Button>(R.id.btnDown)?.setOnClickListener { sendCommand("v") }
+        findViewById<Button>(R.id.btnLeft)?.setOnClickListener { sendCommand("<") }
+        findViewById<Button>(R.id.btnRight)?.setOnClickListener { sendCommand(">") }
     }
 
     private fun startCanvasOS(mode: String) {
         try {
-            process = NativeBridge.startProcess(mode)
-            processWriter = process!!.outputStream.bufferedWriter()
+            val proc = NativeBridge.startProcess(mode)
+            if (proc == null) {
+                appendOutput("[ERROR] Failed to start native process\n" +
+                    "Binary: ${NativeBridge.getBinaryPath()}\n" +
+                    "NativeDir: ${applicationInfo.nativeLibraryDir}\n")
+                return
+            }
 
-            // stdout 읽기 (코루틴)
+            process = proc
+            processWriter = proc.outputStream.bufferedWriter()
+            appendOutput("[OK] Process started\n\n")
+
             outputJob = lifecycleScope.launch(Dispatchers.IO) {
-                val reader = process!!.inputStream.bufferedReader()
+                val reader = proc.inputStream.bufferedReader()
                 val ansiRegex = Regex("\u001B\\[[0-9;]*[a-zA-Z]")
-                val buffer = StringBuilder()
 
                 try {
                     val charBuf = CharArray(4096)
                     while (isActive) {
                         val n = reader.read(charBuf)
-                        if (n == -1) break
-
+                        if (n == -1) {
+                            appendOutput("\n[Process exited]")
+                            break
+                        }
                         val raw = String(charBuf, 0, n)
-                        // ANSI 이스케이프 코드 제거 (터미널 UI에서는 별도 처리)
                         val cleaned = raw.replace(ansiRegex, "")
                             .replace("\u001B[2J\u001B[H", "\n--- screen ---\n")
-
-                        buffer.append(cleaned)
-
-                        // UI 업데이트
-                        withContext(Dispatchers.Main) {
-                            binding.tvOutput.append(cleaned)
-                            // 자동 스크롤
-                            val scrollAmount = binding.tvOutput.layout?.let {
-                                it.getLineTop(binding.tvOutput.lineCount) -
-                                    binding.tvOutput.height
-                            } ?: 0
-                            if (scrollAmount > 0) {
-                                binding.tvOutput.scrollTo(0, scrollAmount)
-                            }
-                        }
+                        appendOutput(cleaned)
                     }
                 } catch (e: IOException) {
-                    // 프로세스 종료
+                    appendOutput("\n[IO Error: ${e.message}]")
                 }
             }
         } catch (e: Exception) {
-            binding.tvOutput.text = "Error: ${e.message}"
+            appendOutput("[CRASH] ${e.message}\n${e.stackTraceToString()}")
+            Log.e(TAG, "startCanvasOS failed", e)
+        }
+    }
+
+    private fun appendOutput(text: String) {
+        runOnUiThread {
+            tvOutput?.append(text)
+            // 자동 스크롤
+            tvOutput?.let { tv ->
+                val scrollAmount = tv.layout?.let {
+                    it.getLineTop(tv.lineCount) - tv.height
+                } ?: 0
+                if (scrollAmount > 0) tv.scrollTo(0, scrollAmount)
+            }
         }
     }
 
     private fun sendInput() {
-        val text = binding.etInput.text.toString()
+        val text = etInput?.text?.toString() ?: return
         if (text.isNotEmpty()) {
             sendCommand(text)
-            binding.etInput.text?.clear()
+            etInput?.text?.clear()
         }
     }
 
@@ -117,9 +146,7 @@ class TerminalActivity : AppCompatActivity() {
             try {
                 processWriter?.write("$cmd\n")
                 processWriter?.flush()
-            } catch (e: IOException) {
-                // 프로세스 종료됨
-            }
+            } catch (_: IOException) {}
         }
     }
 

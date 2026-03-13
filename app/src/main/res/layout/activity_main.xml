@@ -37,7 +37,7 @@
         android:id="@+id/tvVersion"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="v1.0.8"
+        android:text="v1.1.0"
         android:textColor="#484F58"
         android:textSize="12sp"
         android:fontFamily="monospace"
@@ -54,7 +54,7 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnLauncher"
             android:layout_width="280dp"
             android:layout_height="64dp"
@@ -64,10 +64,9 @@
             android:fontFamily="monospace"
             android:textStyle="bold"
             android:backgroundTint="#238636"
-            android:layout_marginBottom="16dp"
-            app:cornerRadius="12dp" />
+            android:layout_marginBottom="16dp" />
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnCli"
             android:layout_width="280dp"
             android:layout_height="52dp"
@@ -76,13 +75,9 @@
             android:textSize="14sp"
             android:fontFamily="monospace"
             android:backgroundTint="#21262D"
-            android:layout_marginBottom="8dp"
-            app:cornerRadius="8dp"
-            app:strokeColor="#30363D"
-            app:strokeWidth="1dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+            android:layout_marginBottom="8dp" />
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnTervas"
             android:layout_width="280dp"
             android:layout_height="52dp"
@@ -91,13 +86,9 @@
             android:textSize="14sp"
             android:fontFamily="monospace"
             android:backgroundTint="#21262D"
-            android:layout_marginBottom="8dp"
-            app:cornerRadius="8dp"
-            app:strokeColor="#30363D"
-            app:strokeWidth="1dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+            android:layout_marginBottom="8dp" />
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnCanvas"
             android:layout_width="280dp"
             android:layout_height="52dp"
@@ -106,13 +97,9 @@
             android:textSize="14sp"
             android:fontFamily="monospace"
             android:backgroundTint="#21262D"
-            android:layout_marginBottom="8dp"
-            app:cornerRadius="8dp"
-            app:strokeColor="#39D4D3"
-            app:strokeWidth="1dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+            android:layout_marginBottom="8dp" />
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnTest"
             android:layout_width="280dp"
             android:layout_height="52dp"
@@ -120,11 +107,7 @@
             android:textColor="#8B949E"
             android:textSize="14sp"
             android:fontFamily="monospace"
-            android:backgroundTint="#21262D"
-            app:cornerRadius="8dp"
-            app:strokeColor="#30363D"
-            app:strokeWidth="1dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+            android:backgroundTint="#21262D" />
 
     </LinearLayout>
 
