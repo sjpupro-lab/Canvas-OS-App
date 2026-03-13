@@ -21,3 +21,7 @@ native/build/tervas
 native/build/sjterm
 native/build/*.so
 native/build/*.cvp
+
+# Release keystore
+*.jks
+*.keystore
