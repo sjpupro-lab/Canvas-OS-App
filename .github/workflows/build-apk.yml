@@ -42,7 +42,9 @@ jobs:
             src/timewarp.c src/vm.c src/pixelcode.c src/vm_runtime_bridge.c \
             src/fd.c src/path.c src/user.c src/utils.c src/shell.c \
             src/fd_canvas_bridge.c src/path_virtual.c src/syscall_bindings.c \
-            src/pixel_loader.c src/timeline.c src/livedemo.c
+            src/pixel_loader.c src/timeline.c src/livedemo.c \
+            src/canvasos_gui.c src/gui_engine_bridge.c \
+            src/sj_stream_packet.c src/permission.c
 
           echo "=== Building canvasos_launcher ==="
           $CC -o canvasos_launcher \
@@ -55,7 +57,14 @@ jobs:
             src/gate_ops.c src/canvasos_opcodes.c src/cvp_io.c src/engine_ctx.c \
             src/lane_exec.c src/bpage_table.c src/inject.c src/wh_io.c \
             src/canvas_lane.c src/canvas_merge.c src/canvas_multiverse.c src/canvas_branch.c \
-            src/canvas_bh_compress.c src/workers.c src/canvas_gpu_stub.c src/sjptl_parser.c
+            src/canvas_bh_compress.c src/workers.c src/canvas_gpu_stub.c src/sjptl_parser.c \
+            src/proc.c src/signal.c src/mprotect.c src/pipe.c src/syscall.c src/detmode.c \
+            src/timewarp.c src/vm.c src/pixelcode.c src/vm_runtime_bridge.c \
+            src/fd.c src/path.c src/user.c src/utils.c src/shell.c \
+            src/fd_canvas_bridge.c src/path_virtual.c src/syscall_bindings.c \
+            src/pixel_loader.c src/timeline.c src/livedemo.c \
+            src/canvasos_gui.c src/gui_engine_bridge.c \
+            src/sj_stream_packet.c src/permission.c
 
           ls -la libcanvasos.so canvasos_launcher
 

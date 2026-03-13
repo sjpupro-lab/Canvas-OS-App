@@ -31,5 +31,13 @@
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
             android:theme="@style/Theme.CanvasOS.Terminal" />
 
+        <activity
+            android:name=".CanvasActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.CanvasOS.Terminal" />
+
     </application>
 </manifest>

@@ -35,6 +35,12 @@
 #include "../include/tervas_projection.h"
 #include "../include/tervas_render_cell.h"
 #include "../include/tervas_dispatch.h"
+#include "../include/canvasos_proc.h"
+#include "../include/canvasos_pipe.h"
+#include "../include/canvasos_syscall.h"
+#include "../include/canvasos_vm.h"
+#include "../include/canvasos_shell.h"
+#include "../include/canvasos_fd.h"
 
 /* ═══════════════════════════════════════════════════════════
  *  CANVAS MEMORY
@@ -49,6 +55,10 @@ static Tervas g_tv;
 
 /* SJ-PTL state */
 static PtlState g_ptl;
+
+/* Phase-11: Process + Pipe tables */
+static ProcTable g_proctable;
+static PipeTable g_pipetable;
 
 /* Session file */
 #define SESSION_FILE "canvasos_session.cvp"
@@ -162,6 +172,16 @@ static int boot_sequence(void) {
     } else {
         boot_line(YEL  "CVP" CLR, "No session found — fresh canvas", 1);
     }
+
+    /* Phase-11: Process + Pipe + Syscall 초기화 */
+    proctable_init(&g_proctable, &g_ctx);
+    memset(&g_pipetable, 0, sizeof(g_pipetable));
+    syscall_set_tables(&g_proctable, &g_pipetable);
+    syscall_init();
+    vm_bridge_init(&g_proctable, &g_pipetable);
+    fd_table_init();
+    fd_set_pipe_table(&g_pipetable);
+    boot_line(BGRN "P11" CLR, "Phase-11: proc/pipe/syscall/vm-bridge/fd", 1);
 
     /* Tick */
     engctx_tick(&g_ctx);

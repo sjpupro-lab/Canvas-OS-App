@@ -98,10 +98,25 @@
             style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCanvas"
+            android:layout_width="280dp"
+            android:layout_height="52dp"
+            android:text="◆  Canvas View"
+            android:textColor="#39D4D3"
+            android:textSize="14sp"
+            android:fontFamily="monospace"
+            android:backgroundTint="#21262D"
+            android:layout_marginBottom="8dp"
+            app:cornerRadius="8dp"
+            app:strokeColor="#39D4D3"
+            app:strokeWidth="1dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTest"
             android:layout_width="280dp"
             android:layout_height="52dp"
-            android:text="▸  Run Tests (160)"
+            android:text="▸  Run Tests (201)"
             android:textColor="#8B949E"
             android:textSize="14sp"
             android:fontFamily="monospace"

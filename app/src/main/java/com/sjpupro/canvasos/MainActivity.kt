@@ -39,8 +39,13 @@ class MainActivity : AppCompatActivity() {
             startTerminal("test")
         }
 
+        binding.btnCanvas.setOnClickListener {
+            val intent = Intent(this, CanvasActivity::class.java)
+            startActivity(intent)
+        }
+
         // 버전 표시
-        binding.tvVersion.text = "v1.0.8-patchH | aarch64"
+        binding.tvVersion.text = "v1.1.0 | aarch64"
     }
 
     private fun startTerminal(mode: String) {

@@ -35,7 +35,7 @@ object NativeBridge {
 
     private fun shouldUpdate(context: Context): Boolean {
         val versionFile = File(context.filesDir, "bin/.version")
-        val currentVersion = "1.0.8-patchH"
+        val currentVersion = "1.1.0"
         if (!versionFile.exists()) return true
         return versionFile.readText().trim() != currentVersion
     }
@@ -50,7 +50,7 @@ object NativeBridge {
 
         // 버전 기록
         val versionFile = File(target.parentFile, ".version")
-        versionFile.writeText("1.0.8-patchH")
+        versionFile.writeText("1.1.0")
     }
 
     /**
