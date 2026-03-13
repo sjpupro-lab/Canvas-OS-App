@@ -191,8 +191,8 @@ launcher: $(LAUNCHER_BIN)
 
 TEST_PHASE8 = tests/test_phase8
 
-$(TEST_PHASE8): tests/test_phase8.c src/proc.c src/signal.c src/mprotect.c src/pipe.c src/syscall.c src/detmode.c src/engine_ctx.c src/cvp_io.c src/gate_ops.c src/wh_io.c src/engine_time.c src/canvasos_opcodes.c src/scheduler.c src/active_set.c src/fd.c src/path.c src/fd_canvas_bridge.c src/path_virtual.c
-	$(CC) $(CFLAGS) -o $@ tests/test_phase8.c src/proc.c src/signal.c src/mprotect.c src/pipe.c src/syscall.c src/detmode.c src/engine_ctx.c src/cvp_io.c src/gate_ops.c src/wh_io.c src/engine_time.c src/canvasos_opcodes.c src/scheduler.c src/active_set.c src/fd.c src/path.c src/fd_canvas_bridge.c src/path_virtual.c $(LDFLAGS)
+$(TEST_PHASE8): tests/test_phase8.c src/proc.c src/signal.c src/mprotect.c src/pipe.c src/syscall.c src/detmode.c src/engine_ctx.c src/cvp_io.c src/gate_ops.c src/wh_io.c src/engine_time.c src/canvasos_opcodes.c src/scheduler.c src/active_set.c src/fd.c src/path.c src/fd_canvas_bridge.c src/path_virtual.c src/canvasfs.c src/canvasfs_bpage.c src/bpage_table.c
+	$(CC) $(CFLAGS) -o $@ tests/test_phase8.c src/proc.c src/signal.c src/mprotect.c src/pipe.c src/syscall.c src/detmode.c src/engine_ctx.c src/cvp_io.c src/gate_ops.c src/wh_io.c src/engine_time.c src/canvasos_opcodes.c src/scheduler.c src/active_set.c src/fd.c src/path.c src/fd_canvas_bridge.c src/path_virtual.c src/canvasfs.c src/canvasfs_bpage.c src/bpage_table.c $(LDFLAGS)
 
 phase8_test: $(TEST_PHASE8)
 	./$(TEST_PHASE8)
