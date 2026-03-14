@@ -17,6 +17,7 @@
 #include "../include/canvasos_syscall.h"
 #include "../include/canvas_determinism.h"
 #include "../include/canvasos_gate_ops.h"
+#include "../include/canvasos_path.h"
 #include "../include/engine_time.h"
 #include <string.h>
 #include <stdio.h>
@@ -40,6 +41,7 @@ static const PxlUtilEntry g_registry[] = {
     { "hash", PXL_UTIL_HASH },
     { "help", PXL_UTIL_HELP },
     { "stat", PXL_UTIL_STAT },
+    { "ls",   PXL_UTIL_LS   },
     { NULL,   PXL_UTIL_NONE },
 };
 
@@ -218,6 +220,7 @@ int pxl_plant_help(EngineContext *ctx, uint32_t x, uint32_t y) {
         "  info           System information\n"
         "  hash           Canvas hash\n"
         "  stat <x,y>     Inspect cell ABGR state\n"
+        "  ls [dir]       List directory entries\n"
         "  help           This message\n"
         "  ps, kill, ls, cd, mkdir, rm\n"
         "  det, timewarp, env, exit\n";
@@ -333,6 +336,84 @@ int pxl_plant_stat(EngineContext *ctx, uint32_t x, uint32_t y,
     return n;
 }
 
+/* ── ls: list directory entries ─────────────────────── */
+int pxl_plant_ls(EngineContext *ctx, uint32_t x, uint32_t y,
+                 const char *dir) {
+    (void)dir; /* dir resolution handled by caller via PathContext */
+    if (!ctx) return 0;
+
+    /* This is a stub — actual ls needs PathContext.
+     * pxl_plant_ls_ex() below does the real work. */
+    const char *msg = "(use pxl_exec_utility_ex for ls)\n";
+    int n = 0;
+    for (int i = 0; msg[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)msg[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
+}
+
+static int pxl_plant_ls_ex(EngineContext *ctx, uint32_t x, uint32_t y,
+                           PathContext *pc, const char *dir_arg) {
+    if (!ctx || !pc) return 0;
+    int n = 0;
+
+    /* Resolve directory */
+    FsKey target = pc->cwd;
+    if (dir_arg && strlen(dir_arg) > 0 && strcmp(dir_arg, ".") != 0) {
+        if (path_resolve(ctx, pc, dir_arg, &target) != 0) {
+            char err[64];
+            snprintf(err, sizeof(err), "ls: not found: %s\n", dir_arg);
+            for (int i = 0; err[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+                vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)err[i]);
+                n++;
+            }
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+            return n + 1;
+        }
+    }
+
+    /* Read directory entries */
+    char names[16][16];
+    FsKey keys[16];
+    int count = path_ls(ctx, pc, target, names, keys, 16);
+
+    if (count == 0) {
+        const char *empty = "  (empty)\n";
+        for (int i = 0; empty[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)empty[i]);
+            n++;
+        }
+    } else {
+        for (int e = 0; e < count; e++) {
+            /* Format: "  name  [gate:slot]\n" */
+            char line[48];
+            snprintf(line, sizeof(line), "  %-12s [%u:%u]\n",
+                     names[e], keys[e].gate_id, keys[e].slot);
+            for (int i = 0; line[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+                vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)line[i]);
+                n++;
+            }
+        }
+    }
+
+    /* Summary line */
+    char summary[32];
+    snprintf(summary, sizeof(summary), "total %d\n", count);
+    for (int i = 0; summary[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)summary[i]);
+        n++;
+    }
+
+    /* HALT */
+    if ((y + (uint32_t)n) < CANVAS_H) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        n++;
+    }
+    return n;
+}
+
 /* ═══════════════════════════════════════════════════════
  * Execute a utility via PixelCode
  *
@@ -387,6 +468,9 @@ int pxl_exec_utility(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
         planted = pxl_plant_stat(ctx, PXL_PROG_X, PXL_PROG_Y, sx, sy);
         break;
     }
+    case PXL_UTIL_LS:
+        planted = pxl_plant_ls(ctx, PXL_PROG_X, PXL_PROG_Y, arg);
+        break;
     default:
         return -1;
     }
@@ -399,4 +483,34 @@ int pxl_exec_utility(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
     vm_run(ctx, &vm);
 
     return 0;
+}
+
+/* ── Extended dispatch with PathContext ─────────────── */
+int pxl_exec_utility_ex(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
+                        PathContext *pc, const char *cmd, const char *arg) {
+    if (!ctx || !cmd) return -1;
+    (void)pipes;
+
+    int uid = pxl_find_utility(cmd);
+
+    /* ls needs PathContext — handle specially */
+    if (uid == PXL_UTIL_LS && pc) {
+        /* Clear program region */
+        for (uint32_t y = PXL_PROG_Y; y < PXL_PROG_Y + 512 && y < CANVAS_H; y++) {
+            uint32_t idx = y * CANVAS_W + PXL_PROG_X;
+            memset(&ctx->cells[idx], 0, sizeof(Cell));
+        }
+
+        int planted = pxl_plant_ls_ex(ctx, PXL_PROG_X, PXL_PROG_Y,
+                                       pc, (arg && strlen(arg) > 0) ? arg : ".");
+        if (planted <= 0) return -2;
+
+        VmState vm;
+        vm_init(&vm, PXL_PROG_X, PXL_PROG_Y, PID_SHELL);
+        vm_run(ctx, &vm);
+        return 0;
+    }
+
+    /* Fallback to standard dispatch */
+    return pxl_exec_utility(ctx, pt, pipes, cmd, arg);
 }

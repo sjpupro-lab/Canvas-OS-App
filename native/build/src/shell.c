@@ -80,7 +80,8 @@ static int shell_exec_builtin(Shell *sh, EngineContext *ctx, const char *line) {
     /* ── PixelCode self-hosting dispatch ── */
     if (pxl_get_mode() == PXL_MODE_PIXELCODE &&
         pxl_find_utility(cmd) != PXL_UTIL_NONE) {
-        return pxl_exec_utility(ctx, sh->pt, sh->pipes, cmd, arg);
+        return pxl_exec_utility_ex(ctx, sh->pt, sh->pipes,
+                                   &sh->pathctx, cmd, arg);
     }
 
     /* ── Process management ── */

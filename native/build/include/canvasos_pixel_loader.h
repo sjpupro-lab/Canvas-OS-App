@@ -21,6 +21,7 @@
 #define PXL_UTIL_HASH   4
 #define PXL_UTIL_HELP   5
 #define PXL_UTIL_STAT   6
+#define PXL_UTIL_LS     7
 
 /* ── Execution Mode ──────────────────────────────────── */
 #define PXL_MODE_C_FALLBACK  0   /* Use C functions (legacy) */
@@ -48,7 +49,14 @@ int  pxl_plant_hash(EngineContext *ctx, uint32_t x, uint32_t y);
 int  pxl_plant_help(EngineContext *ctx, uint32_t x, uint32_t y);
 int  pxl_plant_stat(EngineContext *ctx, uint32_t x, uint32_t y,
                     uint32_t target_x, uint32_t target_y);
+int  pxl_plant_ls(EngineContext *ctx, uint32_t x, uint32_t y,
+                  const char *dir);
 
 /* Execute a utility via PixelCode (plant + run VM) */
 int  pxl_exec_utility(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
                       const char *cmd, const char *arg);
+
+/* Extended dispatch with PathContext for fs commands */
+#include "canvasos_path.h"
+int  pxl_exec_utility_ex(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
+                         PathContext *pc, const char *cmd, const char *arg);
