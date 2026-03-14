@@ -22,6 +22,13 @@
 #define PXL_UTIL_HELP   5
 #define PXL_UTIL_STAT   6
 #define PXL_UTIL_LS     7
+#define PXL_UTIL_WRITE  8
+#define PXL_UTIL_CP     9
+#define PXL_UTIL_MV     10
+#define PXL_UTIL_GATE   11
+#define PXL_UTIL_SPAWN  12
+#define PXL_UTIL_PIPE   13
+#define PXL_UTIL_SCHED  14
 
 /* ── Execution Mode ──────────────────────────────────── */
 #define PXL_MODE_C_FALLBACK  0   /* Use C functions (legacy) */
@@ -51,6 +58,20 @@ int  pxl_plant_stat(EngineContext *ctx, uint32_t x, uint32_t y,
                     uint32_t target_x, uint32_t target_y);
 int  pxl_plant_ls(EngineContext *ctx, uint32_t x, uint32_t y,
                   const char *dir);
+int  pxl_plant_write(EngineContext *ctx, uint32_t x, uint32_t y,
+                     const char *arg);
+int  pxl_plant_cp(EngineContext *ctx, uint32_t x, uint32_t y,
+                  const char *arg);
+int  pxl_plant_mv(EngineContext *ctx, uint32_t x, uint32_t y,
+                  const char *arg);
+int  pxl_plant_gate(EngineContext *ctx, uint32_t x, uint32_t y,
+                    const char *arg);
+int  pxl_plant_spawn(EngineContext *ctx, uint32_t x, uint32_t y,
+                     ProcTable *pt, const char *arg);
+int  pxl_plant_pipe(EngineContext *ctx, uint32_t x, uint32_t y,
+                    PipeTable *pipes, const char *arg);
+int  pxl_plant_sched(EngineContext *ctx, uint32_t x, uint32_t y,
+                     const char *arg);
 
 /* Execute a utility via PixelCode (plant + run VM) */
 int  pxl_exec_utility(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,

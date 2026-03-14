@@ -40,9 +40,16 @@ static const PxlUtilEntry g_registry[] = {
     { "info", PXL_UTIL_INFO },
     { "hash", PXL_UTIL_HASH },
     { "help", PXL_UTIL_HELP },
-    { "stat", PXL_UTIL_STAT },
-    { "ls",   PXL_UTIL_LS   },
-    { NULL,   PXL_UTIL_NONE },
+    { "stat",  PXL_UTIL_STAT  },
+    { "ls",    PXL_UTIL_LS    },
+    { "write", PXL_UTIL_WRITE },
+    { "cp",    PXL_UTIL_CP    },
+    { "mv",    PXL_UTIL_MV    },
+    { "gate",  PXL_UTIL_GATE  },
+    { "spawn", PXL_UTIL_SPAWN },
+    { "pipe",  PXL_UTIL_PIPE  },
+    { "sched", PXL_UTIL_SCHED },
+    { NULL,    PXL_UTIL_NONE  },
 };
 
 int pxl_find_utility(const char *name) {
@@ -221,8 +228,15 @@ int pxl_plant_help(EngineContext *ctx, uint32_t x, uint32_t y) {
         "  hash           Canvas hash\n"
         "  stat <x,y>     Inspect cell ABGR state\n"
         "  ls [dir]       List directory entries\n"
+        "  write x,y A B G R  Write cell\n"
+        "  cp x0,y0 x1,y1 dx,dy  Copy region\n"
+        "  mv x0,y0 x1,y1 dx,dy  Move region\n"
+        "  gate open|close|toggle|status [tile]\n"
+        "  spawn <tile> [energy] [lane]\n"
+        "  pipe create|write|read|close|status\n"
+        "  sched tick [N] | sched status\n"
         "  help           This message\n"
-        "  ps, kill, ls, cd, mkdir, rm\n"
+        "  ps, kill, cd, mkdir, rm\n"
         "  det, timewarp, env, exit\n";
 
     for (int i = 0; text[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
@@ -334,6 +348,426 @@ int pxl_plant_stat(EngineContext *ctx, uint32_t x, uint32_t y,
         n++;
     }
     return n;
+}
+
+/* ── Helper: plant a string as PRINT cells ─────────── */
+static int pxl_plant_str(EngineContext *ctx, uint32_t x, uint32_t *y, const char *s) {
+    int n = 0;
+    for (int i = 0; s[i] && (*y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, *y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)s[i]);
+        n++;
+    }
+    *y += (uint32_t)n;
+    return n;
+}
+
+/* ── write: write ABGR values to a cell ────────────── */
+/* Usage: write x,y A B G R                            */
+int pxl_plant_write(EngineContext *ctx, uint32_t x, uint32_t y,
+                    const char *arg) {
+    if (!ctx) return 0;
+    int n = 0;
+    char buf[128];
+
+    unsigned wx = 0, wy = 0, wa = 0, wb = 0, wg = 0, wr = 0;
+    int parsed = arg ? sscanf(arg, "%u,%u %x %x %u %u",
+                               &wx, &wy, &wa, &wb, &wg, &wr) : 0;
+    if (parsed < 4) {
+        const char *usage = "usage: write x,y A B [G] [R]\n";
+        for (int i = 0; usage[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)usage[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    if (wx >= CANVAS_W || wy >= CANVAS_H) {
+        snprintf(buf, sizeof(buf), "write: (%u,%u) out of bounds\n", wx, wy);
+    } else {
+        /* Use VM_SET to write the cell — this IS the PixelCode operation */
+        uint32_t target_idx = wy * CANVAS_W + wx;
+        vm_plant(ctx, x, y + (uint32_t)n, target_idx, VM_SET,
+                 (uint8_t)wg, (uint8_t)wr);
+        n++;
+        /* Also set A and B on the target directly (SET only handles G/R) */
+        ctx->cells[target_idx].A = wa;
+        ctx->cells[target_idx].B = (uint8_t)wb;
+        ctx->cells[target_idx].G = (uint8_t)wg;
+        ctx->cells[target_idx].R = (uint8_t)wr;
+
+        snprintf(buf, sizeof(buf),
+                 "wrote Cell(%u,%u): A=0x%X B=0x%X G=%u R=%u\n",
+                 wx, wy, wa, wb, wg, wr);
+    }
+
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
+}
+
+/* ── cp: copy rectangular region ───────────────────── */
+/* Usage: cp x0,y0 x1,y1 dx,dy                        */
+int pxl_plant_cp(EngineContext *ctx, uint32_t x, uint32_t y,
+                 const char *arg) {
+    if (!ctx) return 0;
+    int n = 0;
+    char buf[128];
+
+    unsigned x0, y0, x1, y1, dx, dy;
+    int parsed = arg ? sscanf(arg, "%u,%u %u,%u %u,%u",
+                               &x0, &y0, &x1, &y1, &dx, &dy) : 0;
+    if (parsed < 6) {
+        const char *usage = "usage: cp x0,y0 x1,y1 dx,dy\n"
+                            "  copy region (x0,y0)-(x1,y1) to offset (dx,dy)\n";
+        for (int i = 0; usage[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)usage[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    if (x1 >= CANVAS_W) x1 = CANVAS_W - 1;
+    if (y1 >= CANVAS_H) y1 = CANVAS_H - 1;
+
+    uint32_t copied = 0;
+    for (uint32_t cy = y0; cy <= y1 && cy < CANVAS_H; cy++) {
+        for (uint32_t cx = x0; cx <= x1 && cx < CANVAS_W; cx++) {
+            uint32_t dst_x = cx + dx, dst_y = cy + dy;
+            if (dst_x < CANVAS_W && dst_y < CANVAS_H) {
+                uint32_t si = cy * CANVAS_W + cx;
+                uint32_t di = dst_y * CANVAS_W + dst_x;
+                ctx->cells[di] = ctx->cells[si];
+                copied++;
+            }
+        }
+    }
+
+    snprintf(buf, sizeof(buf), "copied %u cells from (%u,%u)-(%u,%u) +(%u,%u)\n",
+             copied, x0, y0, x1, y1, dx, dy);
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
+}
+
+/* ── mv: move region (copy + clear source) ─────────── */
+/* Usage: mv x0,y0 x1,y1 dx,dy                        */
+int pxl_plant_mv(EngineContext *ctx, uint32_t x, uint32_t y,
+                 const char *arg) {
+    if (!ctx) return 0;
+    int n = 0;
+    char buf[128];
+
+    unsigned x0, y0, x1, y1, dx, dy;
+    int parsed = arg ? sscanf(arg, "%u,%u %u,%u %u,%u",
+                               &x0, &y0, &x1, &y1, &dx, &dy) : 0;
+    if (parsed < 6) {
+        const char *usage = "usage: mv x0,y0 x1,y1 dx,dy\n"
+                            "  move region (copy + clear source)\n";
+        for (int i = 0; usage[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)usage[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    if (x1 >= CANVAS_W) x1 = CANVAS_W - 1;
+    if (y1 >= CANVAS_H) y1 = CANVAS_H - 1;
+
+    uint32_t moved = 0;
+    for (uint32_t cy = y0; cy <= y1 && cy < CANVAS_H; cy++) {
+        for (uint32_t cx = x0; cx <= x1 && cx < CANVAS_W; cx++) {
+            uint32_t dst_x = cx + dx, dst_y = cy + dy;
+            if (dst_x < CANVAS_W && dst_y < CANVAS_H) {
+                uint32_t si = cy * CANVAS_W + cx;
+                uint32_t di = dst_y * CANVAS_W + dst_x;
+                ctx->cells[di] = ctx->cells[si];
+                memset(&ctx->cells[si], 0, sizeof(Cell));
+                moved++;
+            }
+        }
+    }
+
+    snprintf(buf, sizeof(buf), "moved %u cells from (%u,%u)-(%u,%u) +(%u,%u)\n",
+             moved, x0, y0, x1, y1, dx, dy);
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
+}
+
+/* ── gate: open/close/toggle/status ────────────────── */
+/* Usage: gate open|close|toggle|status <tile_id>      */
+int pxl_plant_gate(EngineContext *ctx, uint32_t x, uint32_t y,
+                   const char *arg) {
+    if (!ctx) return 0;
+    int n = 0;
+    char buf[128];
+
+    char subcmd[16] = {0};
+    unsigned tile_id = 0;
+    int parsed = arg ? sscanf(arg, "%15s %u", subcmd, &tile_id) : 0;
+
+    if (parsed < 1) {
+        const char *usage = "usage: gate open|close|toggle|status [tile_id]\n";
+        for (int i = 0; usage[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)usage[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    if (strcmp(subcmd, "status") == 0) {
+        /* Show gate status summary */
+        int open_count = 0;
+        for (int i = 0; i < TILE_COUNT; i++)
+            if (gate_is_open_tile(ctx, (uint16_t)i)) open_count++;
+        snprintf(buf, sizeof(buf), "gates: %d/%d open\n", open_count, TILE_COUNT);
+    } else if (parsed < 2) {
+        snprintf(buf, sizeof(buf), "usage: gate %s <tile_id>\n", subcmd);
+    } else if (tile_id >= (unsigned)TILE_COUNT) {
+        snprintf(buf, sizeof(buf), "gate: tile %u out of range (max %d)\n",
+                 tile_id, TILE_COUNT - 1);
+    } else if (strcmp(subcmd, "open") == 0) {
+        /* Plant VM_GATE_ON instruction */
+        vm_plant(ctx, x, y + (uint32_t)n, tile_id, VM_GATE_ON, 0, 0);
+        n++;
+        gate_open_tile(ctx, (uint16_t)tile_id);
+        snprintf(buf, sizeof(buf), "gate %u: OPENED\n", tile_id);
+    } else if (strcmp(subcmd, "close") == 0) {
+        vm_plant(ctx, x, y + (uint32_t)n, tile_id, VM_GATE_OFF, 0, 0);
+        n++;
+        gate_close_tile(ctx, (uint16_t)tile_id);
+        snprintf(buf, sizeof(buf), "gate %u: CLOSED\n", tile_id);
+    } else if (strcmp(subcmd, "toggle") == 0) {
+        if (gate_is_open_tile(ctx, (uint16_t)tile_id)) {
+            vm_plant(ctx, x, y + (uint32_t)n, tile_id, VM_GATE_OFF, 0, 0);
+            n++;
+            gate_close_tile(ctx, (uint16_t)tile_id);
+            snprintf(buf, sizeof(buf), "gate %u: CLOSED (was open)\n", tile_id);
+        } else {
+            vm_plant(ctx, x, y + (uint32_t)n, tile_id, VM_GATE_ON, 0, 0);
+            n++;
+            gate_open_tile(ctx, (uint16_t)tile_id);
+            snprintf(buf, sizeof(buf), "gate %u: OPENED (was closed)\n", tile_id);
+        }
+    } else {
+        snprintf(buf, sizeof(buf), "gate: unknown command '%s'\n", subcmd);
+    }
+
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
+}
+
+/* ── spawn: create a new process ───────────────────── */
+/* Usage: spawn <code_tile> [energy] [lane_id]         */
+int pxl_plant_spawn(EngineContext *ctx, uint32_t x, uint32_t y,
+                    ProcTable *pt, const char *arg) {
+    if (!ctx) return 0;
+    int n = 0;
+    char buf[128];
+
+    unsigned code_tile = 0, energy = 100, lane = 0;
+    int parsed = arg ? sscanf(arg, "%u %u %u", &code_tile, &energy, &lane) : 0;
+
+    if (parsed < 1) {
+        const char *usage = "usage: spawn <code_tile> [energy] [lane_id]\n";
+        for (int i = 0; usage[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)usage[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    /* Plant VM_SPAWN instruction */
+    vm_plant(ctx, x, y + (uint32_t)n,
+             (uint32_t)code_tile, VM_SPAWN, (uint8_t)energy, (uint8_t)lane);
+    n++;
+
+    /* Actually spawn the process */
+    if (pt) {
+        int pid = proc_spawn(pt, PID_SHELL, (uint16_t)code_tile,
+                             energy, (uint8_t)lane);
+        if (pid >= 0)
+            snprintf(buf, sizeof(buf),
+                     "spawned pid=%d tile=%u energy=%u lane=%u\n",
+                     pid, code_tile, energy, lane);
+        else
+            snprintf(buf, sizeof(buf), "spawn failed (table full)\n");
+    } else {
+        snprintf(buf, sizeof(buf), "spawn: no process table\n");
+    }
+
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
+}
+
+/* ── pipe: create/write/read/close/status ──────────── */
+/* Usage: pipe create <writer_pid> <reader_pid>        */
+/*        pipe write <id> <data>                       */
+/*        pipe read <id>                               */
+/*        pipe close <id>                              */
+/*        pipe status                                  */
+int pxl_plant_pipe(EngineContext *ctx, uint32_t x, uint32_t y,
+                   PipeTable *pipes, const char *arg) {
+    if (!ctx) return 0;
+    int n = 0;
+    char buf[256];
+
+    char subcmd[16] = {0};
+    int parsed = arg ? sscanf(arg, "%15s", subcmd) : 0;
+
+    if (parsed < 1 || !pipes) {
+        const char *usage = "usage: pipe create|write|read|close|status\n";
+        for (int i = 0; usage[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)usage[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    const char *rest = arg + strlen(subcmd);
+    while (*rest == ' ') rest++;
+
+    if (strcmp(subcmd, "create") == 0) {
+        unsigned wpid = 0, rpid = 0;
+        if (sscanf(rest, "%u %u", &wpid, &rpid) >= 2) {
+            int pid = pipe_create(pipes, ctx, wpid, rpid);
+            if (pid >= 0)
+                snprintf(buf, sizeof(buf), "pipe %d created (%u→%u)\n",
+                         pid, wpid, rpid);
+            else
+                snprintf(buf, sizeof(buf), "pipe create failed\n");
+        } else {
+            snprintf(buf, sizeof(buf), "usage: pipe create <writer> <reader>\n");
+        }
+    } else if (strcmp(subcmd, "write") == 0) {
+        unsigned pid = 0;
+        char data[128] = {0};
+        if (sscanf(rest, "%u %127[^\n]", &pid, data) >= 2) {
+            /* Plant VM_SEND for each byte */
+            for (int i = 0; data[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+                vm_plant(ctx, x, y + (uint32_t)n,
+                         pid, VM_SEND, 0, (uint8_t)data[i]);
+                n++;
+            }
+            int rc = pipe_write(pipes, ctx, (int)pid,
+                               (const uint8_t *)data, (uint16_t)strlen(data));
+            snprintf(buf, sizeof(buf), "pipe %u: wrote %d bytes\n",
+                     pid, rc >= 0 ? (int)strlen(data) : 0);
+        } else {
+            snprintf(buf, sizeof(buf), "usage: pipe write <id> <data>\n");
+        }
+    } else if (strcmp(subcmd, "read") == 0) {
+        unsigned pid = 0;
+        if (sscanf(rest, "%u", &pid) >= 1) {
+            uint8_t rbuf[128] = {0};
+            int nr = pipe_read(pipes, ctx, (int)pid, rbuf, 127);
+            if (nr > 0) {
+                rbuf[nr] = 0;
+                snprintf(buf, sizeof(buf), "pipe %u: read %d bytes: %s\n",
+                         pid, nr, rbuf);
+            } else {
+                snprintf(buf, sizeof(buf), "pipe %u: empty\n", pid);
+            }
+        } else {
+            snprintf(buf, sizeof(buf), "usage: pipe read <id>\n");
+        }
+    } else if (strcmp(subcmd, "close") == 0) {
+        unsigned pid = 0;
+        if (sscanf(rest, "%u", &pid) >= 1) {
+            pipe_close(pipes, ctx, (int)pid);
+            snprintf(buf, sizeof(buf), "pipe %u: closed\n", pid);
+        } else {
+            snprintf(buf, sizeof(buf), "usage: pipe close <id>\n");
+        }
+    } else if (strcmp(subcmd, "status") == 0) {
+        int active = 0;
+        for (int i = 0; i < PIPE_MAX; i++)
+            if (pipes->pipes[i].active) active++;
+        snprintf(buf, sizeof(buf), "pipes: %d/%d active\n", active, PIPE_MAX);
+    } else {
+        snprintf(buf, sizeof(buf), "pipe: unknown '%s'\n", subcmd);
+    }
+
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
+}
+
+/* ── sched: tick scheduling control ────────────────── */
+/* Usage: sched tick [N]    — run N ticks (default 1)  */
+/*        sched auto <ms>   — set auto-tick interval   */
+/*        sched status      — show tick count/rate     */
+int pxl_plant_sched(EngineContext *ctx, uint32_t x, uint32_t y,
+                    const char *arg) {
+    if (!ctx) return 0;
+    int n = 0;
+    char buf[128];
+
+    char subcmd[16] = {0};
+    unsigned val = 1;
+    int parsed = arg ? sscanf(arg, "%15s %u", subcmd, &val) : 0;
+
+    if (parsed < 1) {
+        const char *usage =
+            "usage: sched tick [N] | sched status\n";
+        for (int i = 0; usage[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)usage[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    if (strcmp(subcmd, "tick") == 0) {
+        if (val > 10000) val = 10000;
+        uint32_t start = ctx->tick;
+        for (unsigned i = 0; i < val; i++)
+            engctx_tick(ctx);
+        snprintf(buf, sizeof(buf), "executed %u ticks (%u → %u)\n",
+                 val, start, ctx->tick);
+    } else if (strcmp(subcmd, "status") == 0) {
+        int open_gates = 0;
+        for (int i = 0; i < TILE_COUNT; i++)
+            if (gate_is_open_tile(ctx, (uint16_t)i)) open_gates++;
+        snprintf(buf, sizeof(buf),
+                 "tick=%u  gates=%d/%d\n",
+                 ctx->tick, open_gates, TILE_COUNT);
+    } else {
+        snprintf(buf, sizeof(buf), "sched: unknown '%s'\n", subcmd);
+    }
+
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+    vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+    return n + 1;
 }
 
 /* ── ls: list directory entries ─────────────────────── */
@@ -471,6 +905,27 @@ int pxl_exec_utility(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
     case PXL_UTIL_LS:
         planted = pxl_plant_ls(ctx, PXL_PROG_X, PXL_PROG_Y, arg);
         break;
+    case PXL_UTIL_WRITE:
+        planted = pxl_plant_write(ctx, PXL_PROG_X, PXL_PROG_Y, arg);
+        break;
+    case PXL_UTIL_CP:
+        planted = pxl_plant_cp(ctx, PXL_PROG_X, PXL_PROG_Y, arg);
+        break;
+    case PXL_UTIL_MV:
+        planted = pxl_plant_mv(ctx, PXL_PROG_X, PXL_PROG_Y, arg);
+        break;
+    case PXL_UTIL_GATE:
+        planted = pxl_plant_gate(ctx, PXL_PROG_X, PXL_PROG_Y, arg);
+        break;
+    case PXL_UTIL_SPAWN:
+        planted = pxl_plant_spawn(ctx, PXL_PROG_X, PXL_PROG_Y, pt, arg);
+        break;
+    case PXL_UTIL_PIPE:
+        planted = pxl_plant_pipe(ctx, PXL_PROG_X, PXL_PROG_Y, pipes, arg);
+        break;
+    case PXL_UTIL_SCHED:
+        planted = pxl_plant_sched(ctx, PXL_PROG_X, PXL_PROG_Y, arg);
+        break;
     default:
         return -1;
     }
@@ -505,6 +960,20 @@ int pxl_exec_utility_ex(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
                                        pc, (arg && strlen(arg) > 0) ? arg : ".");
         if (planted <= 0) return -2;
 
+        VmState vm;
+        vm_init(&vm, PXL_PROG_X, PXL_PROG_Y, PID_SHELL);
+        vm_run(ctx, &vm);
+        return 0;
+    }
+
+    /* For pipe: forward pipes pointer */
+    if (uid == PXL_UTIL_PIPE && pipes) {
+        for (uint32_t yy = PXL_PROG_Y; yy < PXL_PROG_Y + 512 && yy < CANVAS_H; yy++) {
+            uint32_t idx = yy * CANVAS_W + PXL_PROG_X;
+            memset(&ctx->cells[idx], 0, sizeof(Cell));
+        }
+        int planted = pxl_plant_pipe(ctx, PXL_PROG_X, PXL_PROG_Y, pipes, arg);
+        if (planted <= 0) return -2;
         VmState vm;
         vm_init(&vm, PXL_PROG_X, PXL_PROG_Y, PID_SHELL);
         vm_run(ctx, &vm);
