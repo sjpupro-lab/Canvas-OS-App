@@ -39,6 +39,7 @@ static const PxlUtilEntry g_registry[] = {
     { "info", PXL_UTIL_INFO },
     { "hash", PXL_UTIL_HASH },
     { "help", PXL_UTIL_HELP },
+    { "stat", PXL_UTIL_STAT },
     { NULL,   PXL_UTIL_NONE },
 };
 
@@ -216,6 +217,7 @@ int pxl_plant_help(EngineContext *ctx, uint32_t x, uint32_t y) {
         "  cat <path>     Show file/virtual path\n"
         "  info           System information\n"
         "  hash           Canvas hash\n"
+        "  stat <x,y>     Inspect cell ABGR state\n"
         "  help           This message\n"
         "  ps, kill, ls, cd, mkdir, rm\n"
         "  det, timewarp, env, exit\n";
@@ -224,6 +226,106 @@ int pxl_plant_help(EngineContext *ctx, uint32_t x, uint32_t y) {
         vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)text[i]);
         n++;
     }
+    if ((y + (uint32_t)n) < CANVAS_H) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        n++;
+    }
+    return n;
+}
+
+/* ── stat: inspect a single cell's full ABGR state ──── */
+static const char *vm_opcode_name(uint8_t b) {
+    switch (b) {
+    case VM_NOP:       return "NOP";
+    case VM_PRINT:     return "PRINT";
+    case VM_HALT:      return "HALT";
+    case VM_SET:       return "SET";
+    case VM_COPY:      return "COPY";
+    case VM_ADD:       return "ADD";
+    case VM_SUB:       return "SUB";
+    case VM_CMP:       return "CMP";
+    case VM_JMP:       return "JMP";
+    case VM_JZ:        return "JZ";
+    case VM_JNZ:       return "JNZ";
+    case VM_CALL:      return "CALL";
+    case VM_RET:       return "RET";
+    case VM_LOAD:      return "LOAD";
+    case VM_STORE:     return "STORE";
+    case VM_GATE_ON:   return "GATE_ON";
+    case VM_GATE_OFF:  return "GATE_OFF";
+    case VM_SEND:      return "SEND";
+    case VM_RECV:      return "RECV";
+    case VM_SPAWN:     return "SPAWN";
+    case VM_EXIT:      return "EXIT";
+    case VM_DRAW:      return "DRAW";
+    case VM_LINE:      return "LINE";
+    case VM_RECT:      return "RECT";
+    case VM_SYSCALL:   return "SYSCALL";
+    case VM_BREAKPOINT:return "BREAKPOINT";
+    default:           return "???";
+    }
+}
+
+int pxl_plant_stat(EngineContext *ctx, uint32_t x, uint32_t y,
+                   uint32_t target_x, uint32_t target_y) {
+    if (!ctx) return 0;
+    int n = 0;
+
+    /* Bounds check */
+    if (target_x >= CANVAS_W || target_y >= CANVAS_H) {
+        const char *err = "stat: out of bounds\n";
+        for (int i = 0; err[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+            vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)err[i]);
+            n++;
+        }
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
+        return n + 1;
+    }
+
+    /* Read target cell */
+    uint32_t idx = target_y * CANVAS_W + target_x;
+    Cell c = ctx->cells[idx];
+
+    /* Tile and gate info */
+    uint16_t tile = (uint16_t)tile_id_of_xy((uint16_t)target_x, (uint16_t)target_y);
+    uint16_t tile_lx = (uint16_t)(target_x / TILE);
+    uint16_t tile_ly = (uint16_t)(target_y / TILE);
+    const char *gate_str = gate_is_open_tile(ctx, tile) ? "OPEN" : "CLOSED";
+
+    /* Lane ID from A[31:24] */
+    uint8_t lane_id = (uint8_t)(c.A >> 24);
+
+    /* Is it in control region? */
+    int in_cr = (target_x >= CR_X0 && target_x < CR_X0 + CR_W &&
+                 target_y >= CR_Y0 && target_y < CR_Y0 + CR_H);
+
+    /* Format output */
+    char buf[512];
+    snprintf(buf, sizeof(buf),
+        "=== Cell(%u,%u) ===\n"
+        "  A = 0x%08X  (lane=%u)\n"
+        "  B = 0x%02X      (%s)\n"
+        "  G = %u        (0x%02X)\n"
+        "  R = %u        (0x%02X '%c')\n"
+        "  tile = %u (%u,%u)  gate=%s\n"
+        "  index = %u\n"
+        "  region = %s\n",
+        target_x, target_y,
+        c.A, lane_id,
+        c.B, vm_opcode_name(c.B),
+        c.G, c.G,
+        c.R, c.R, (c.R >= 0x20 && c.R < 0x7F) ? (char)c.R : '.',
+        tile, tile_lx, tile_ly, gate_str,
+        idx,
+        in_cr ? "ControlRegion" : "Data");
+
+    /* Plant PRINT cells */
+    for (int i = 0; buf[i] && (y + (uint32_t)n) < CANVAS_H; i++) {
+        vm_plant(ctx, x, y + (uint32_t)n, 0, VM_PRINT, 0, (uint8_t)buf[i]);
+        n++;
+    }
+
+    /* HALT */
     if ((y + (uint32_t)n) < CANVAS_H) {
         vm_plant(ctx, x, y + (uint32_t)n, 0, VM_HALT, 0, 0);
         n++;
@@ -272,6 +374,19 @@ int pxl_exec_utility(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,
     case PXL_UTIL_HELP:
         planted = pxl_plant_help(ctx, PXL_PROG_X, PXL_PROG_Y);
         break;
+    case PXL_UTIL_STAT: {
+        /* Parse "x,y" or "x y" from arg */
+        uint32_t sx = ORIGIN_X, sy = ORIGIN_Y;
+        if (arg && arg[0]) {
+            unsigned ux = 0, uy = 0;
+            if (sscanf(arg, "%u,%u", &ux, &uy) == 2 ||
+                sscanf(arg, "%u %u", &ux, &uy) == 2) {
+                sx = ux; sy = uy;
+            }
+        }
+        planted = pxl_plant_stat(ctx, PXL_PROG_X, PXL_PROG_Y, sx, sy);
+        break;
+    }
     default:
         return -1;
     }

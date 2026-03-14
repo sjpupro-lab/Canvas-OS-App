@@ -99,6 +99,9 @@ jobs:
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version 8.9
 
+      - name: Remove local aapt2 override
+        run: sed -i '/aapt2FromMavenOverride/d' gradle.properties
+
       - name: Build Release AAB (Google Play)
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/canvasos-release.jks

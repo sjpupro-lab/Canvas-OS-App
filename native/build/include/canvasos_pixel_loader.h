@@ -20,6 +20,7 @@
 #define PXL_UTIL_INFO   3
 #define PXL_UTIL_HASH   4
 #define PXL_UTIL_HELP   5
+#define PXL_UTIL_STAT   6
 
 /* ── Execution Mode ──────────────────────────────────── */
 #define PXL_MODE_C_FALLBACK  0   /* Use C functions (legacy) */
@@ -45,6 +46,8 @@ int  pxl_plant_cat(EngineContext *ctx, uint32_t x, uint32_t y,
 int  pxl_plant_info(EngineContext *ctx, uint32_t x, uint32_t y, ProcTable *pt);
 int  pxl_plant_hash(EngineContext *ctx, uint32_t x, uint32_t y);
 int  pxl_plant_help(EngineContext *ctx, uint32_t x, uint32_t y);
+int  pxl_plant_stat(EngineContext *ctx, uint32_t x, uint32_t y,
+                    uint32_t target_x, uint32_t target_y);
 
 /* Execute a utility via PixelCode (plant + run VM) */
 int  pxl_exec_utility(EngineContext *ctx, ProcTable *pt, PipeTable *pipes,

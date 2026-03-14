@@ -112,6 +112,9 @@ jobs:
         run: |
           gradle wrapper --gradle-version 8.9
 
+      - name: Remove local aapt2 override
+        run: sed -i '/aapt2FromMavenOverride/d' gradle.properties
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
